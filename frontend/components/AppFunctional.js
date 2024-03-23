@@ -1,74 +1,187 @@
-import React from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
 
-// önerilen başlangıç stateleri
 const initialMessage = '';
 const initialEmail = '';
 const initialSteps = 0;
-const initialIndex = 4; //  "B" nin bulunduğu indexi
+const initialIndex = 4;
+
+const theGrid = [
+  '(1,1)',
+  '(2,1)',
+  '(3,1)',
+  '(1,2)',
+  '(2,2)',
+  '(3,2)',
+  '(1,3)',
+  '(2,3)',
+  '(3,3)',
+];
 
 export default function AppFunctional(props) {
-  // AŞAĞIDAKİ HELPERLAR SADECE ÖNERİDİR.
-  // Bunları silip kendi mantığınızla sıfırdan geliştirebilirsiniz.
+  const [message, setMessage] = useState(initialMessage);
+  const [email, setEmail] = useState(initialEmail);
+  const [steps, setSteps] = useState(initialSteps);
+  const [index, setIndex] = useState(initialIndex);
 
   function getXY() {
-    // Koordinatları izlemek için bir state e sahip olmak gerekli değildir.
-    // Bunları hesaplayabilmek için "B" nin hangi indexte olduğunu bilmek yeterlidir.
+    return theGrid[index];
   }
 
   function getXYMesaj() {
-    // Kullanıcı için "Koordinatlar (2, 2)" mesajını izlemek için bir state'in olması gerekli değildir.
-    // Koordinatları almak için yukarıdaki "getXY" helperını ve ardından "getXYMesaj"ı kullanabilirsiniz.
-    // tamamen oluşturulmuş stringi döndürür.
+    const coordinates = getXY();
+    const [x, y] = coordinates.slice(1, -1).split(',');
+
+    if (x === '1' && y === '1') {
+      return 'Sol ve Yukarı yönünde gidebileceğiniz bir kare kalmadı!';
+    } else if (x === '1' && y === '3') {
+      return 'Sol ve Aşağı yönünde gidebileceğiniz bir kare kalmadı!';
+    } else if (x === '3' && y === '1') {
+      return 'Sağ ve Yukarı yönünde gidebileceğiniz bir kare kalmadı!';
+    } else if (x === '3' && y === '3') {
+      return 'Sağ ve Aşağı yönünde gidebileceğiniz bir kare kalmadı!';
+    } else if (x === '1') {
+      return 'Sol yönünde gidebileceğiniz bir kare kalmadı!';
+    } else if (x === '3') {
+      return 'Sağ yönünde gidebileceğiniz bir kare kalmadı!';
+    } else if (y === '1') {
+      return 'Yukarı yönünde gidebileceğiniz bir kare kalmadı!';
+    } else if (y === '3') {
+      return 'Aşağı yönünde gidebileceğiniz bir kare kalmadı!';
+    } else {
+      return `Koordinatlar ${coordinates}`;
+    }
   }
 
   function reset() {
-    // Tüm stateleri başlangıç ​​değerlerine sıfırlamak için bu helperı kullanın.
+    setMessage(initialMessage);
+    setEmail(initialEmail);
+    setSteps(initialSteps);
+    setIndex(initialIndex);
   }
 
   function sonrakiIndex(yon) {
-    // Bu helper bir yön ("sol", "yukarı", vb.) alır ve "B" nin bir sonraki indeksinin ne olduğunu hesaplar.
-    // Gridin kenarına ulaşıldığında başka gidecek yer olmadığı için,
-    // şu anki indeksi değiştirmemeli.
+    let nextIndex;
+    switch (yon) {
+      case 'sol':
+        nextIndex = index - 1;
+        if (nextIndex % 3 === 2) {
+          nextIndex = index;
+        }
+        break;
+      case 'yukarı':
+        nextIndex = index - 3;
+        if (nextIndex < 0) {
+          nextIndex = index;
+        }
+        break;
+      case 'sağ':
+        nextIndex = index + 1;
+        if (nextIndex % 3 === 0) {
+          nextIndex = index;
+        }
+        break;
+      case 'aşağı':
+        nextIndex = index + 3;
+        if (nextIndex > 8) {
+          nextIndex = index;
+        }
+        break;
+      default:
+        nextIndex = index;
+        break;
+    }
+    return nextIndex;
   }
 
-  function ilerle(evt) {
-    // Bu event handler, "B" için yeni bir dizin elde etmek üzere yukarıdaki yardımcıyı kullanabilir,
-    // ve buna göre state i değiştirir.
+  function ilerle(yon) {
+    const nextIndex = sonrakiIndex(yon);
+    setIndex(nextIndex);
+    setSteps(steps + 1);
+    setMessage(getXYMesaj());
   }
 
   function onChange(evt) {
-    // inputun değerini güncellemek için bunu kullanabilirsiniz
+    const { id, value } = evt.target;
+    switch (id) {
+      case 'email':
+        setEmail(value);
+        break;
+      default:
+        break;
+    }
   }
 
   function onSubmit(evt) {
-    // payloadu POST etmek için bir submit handlera da ihtiyacınız var.
+    evt.preventDefault();
+    const theData = {
+      x: theGrid[index][1],
+      y: theGrid[index][3],
+      steps: steps,
+      email: email,
+    };
+
+    setEmail(initialEmail);
+
+    const config = {
+      method: 'post',
+      url: 'http://localhost:9000/api/result',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      data: theData,
+    };
+
+    axios(config)
+      .then(function (response) {
+        setMessage(response.data.message);
+      })
+      .catch(function (error) {
+        setMessage(error.response.data.message);
+      });
   }
 
   return (
     <div id="wrapper" className={props.className}>
       <div className="info">
-        <h3 id="coordinates">Koordinatlar (2, 2)</h3>
-        <h3 id="steps">0 kere ilerlediniz</h3>
+        <h3 id="coordinates">Koordinatlar {getXY()}</h3>
+        <h3 id="steps">{steps} kere ilerlediniz</h3>
       </div>
       <div id="grid">
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((idx) => (
-          <div key={idx} className={`square${idx === 4 ? ' active' : ''}`}>
-            {idx === 4 ? 'B' : null}
+        {theGrid.map((coordinates, idx) => (
+          <div key={idx} className={`square${idx === index ? ' active' : ''}`}>
+            {idx === index ? 'B' : null}
           </div>
         ))}
       </div>
       <div className="info">
-        <h3 id="message"></h3>
+        <h3 id="message">{message}</h3>
       </div>
       <div id="keypad">
-        <button id="left">SOL</button>
-        <button id="up">YUKARI</button>
-        <button id="right">SAĞ</button>
-        <button id="down">AŞAĞI</button>
-        <button id="reset">reset</button>
+        <button id="left" onClick={() => ilerle('sol')}>
+          SOL
+        </button>
+        <button id="up" onClick={() => ilerle('yukarı')}>
+          YUKARI
+        </button>
+        <button id="right" onClick={() => ilerle('sağ')}>
+          SAĞ
+        </button>
+        <button id="down" onClick={() => ilerle('aşağı')}>
+          AŞAĞI
+        </button>
+        <button id="reset" onClick={reset}>
+          Reset
+        </button>
       </div>
-      <form>
-        <input id="email" type="email" placeholder="email girin"></input>
+      <form onSubmit={onSubmit}>
+        <input
+          id="email"
+          type="email"
+          placeholder="email girin"
+          value={email}
+          onChange={onChange}
+        ></input>
         <input id="submit" type="submit"></input>
       </form>
     </div>
